@@ -22,10 +22,14 @@ pacman::p_load(
   ggpubr
 )
 
+# set working directory
+
+wdPath = file.path("C:", "Users", "nicwa", "Dropbox", "PhD", "Publications", "statistics of the environment", "statistics_of_the_environment_code")
+setwd(wdPath)
+
+
 options(digits = 5)
 # functions for plotting and simulating data --------------------------------
-
-
 
 
 plotSimData <-
@@ -100,7 +104,7 @@ plotSimData <-
       )
     
     finalPlotLabeled <- finalPlot + labs(
-      x = "time",
+      x = "measurement point",
       y = "harshness",
       title = paste(
         'autocorrelation = ',
@@ -180,7 +184,7 @@ simData <-
            slopeChangeVar,
            noiseVar,
            rangeMin,
-           rangeMax) {
+           rangeMax, missingness) {
     ### parameters
     
     # nSample: desired sample size
@@ -359,8 +363,13 @@ simData <-
     
     # do you want to add missing data at random?
     
-    #m  = rbinom(n=ni*nj, size=1, prob=.1)
-    #y[m==1] = NA
+    if (missingness != 'None') {
+      
+      m  = rbinom(n=sample*nObs, size=1, prob=missingness)
+      y[m==1] = NA
+      
+      
+    }
     
     data$y  = y
     
@@ -401,10 +410,12 @@ changePointsVar = 1
 slopeChangeMean = c(-0.2, 0.2)
 slopeChangeVar = 0.1
 
-noiseVar = 5
+noiseVar = 0.5
 
 rangeMin = 1
 rangeMax = 10
+
+missingness = 'None'
 
 list[data, populationChangePoints] <- simData(
   nSample,
@@ -418,7 +429,7 @@ list[data, populationChangePoints] <- simData(
   slopeChangeVar,
   noiseVar,
   rangeMin,
-  rangeMax
+  rangeMax, missingness
 )
 
 
@@ -427,7 +438,6 @@ head(data, 50)
 print(populationChangePoints)
 
 # plot raw data and descriptives ------------------------------------------
-
 
 
 numParticipants = 30
@@ -456,6 +466,7 @@ slopeChangeVar = 0.1
 rangeMin = 1
 rangeMax = 10
 
+missingness = 'None'
 
 
 
@@ -464,9 +475,11 @@ rangeMax = 10
 
 nSample = 100 # number of subjects
 
-# between participant variances in intercept and slope, and covariance between the two
+# between participant variances in intercept and slope, 
+# and covariance between the two
 
-# ((varIntercept, covar), (coVar,varSlope))
+# ((varIntercept, covar), 
+# (coVar,varSlope))
 SigmaModel = rbind(c(5, 0.2),
                    c(0.2, 0.05))
 
@@ -507,7 +520,7 @@ list[data, populationChangePoints] <- simData(
   slopeChangeVar,
   noiseVar,
   rangeMin,
-  rangeMax
+  rangeMax, missingness
 )
 
 numParticipants = 30
@@ -533,7 +546,7 @@ list[data, populationChangePoints] <- simData(
   slopeChangeVar,
   noiseVar,
   rangeMin,
-  rangeMax
+  rangeMax, missingness
 )
 
 numParticipants = 30
@@ -559,7 +572,7 @@ list[data, populationChangePoints] <- simData(
   slopeChangeVar,
   noiseVar,
   rangeMin,
-  rangeMax
+  rangeMax, missingness
 )
 
 numParticipants = 30
@@ -585,7 +598,7 @@ list[data, populationChangePoints] <- simData(
   slopeChangeVar,
   noiseVar,
   rangeMin,
-  rangeMax
+  rangeMax, missingness
 )
 
 numParticipants = 30
@@ -611,7 +624,7 @@ list[data, populationChangePoints] <- simData(
   slopeChangeVar,
   noiseVar,
   rangeMin,
-  rangeMax
+  rangeMax, missingness
 )
 
 numParticipants = 30
@@ -637,7 +650,7 @@ list[data, populationChangePoints] <- simData(
   slopeChangeVar,
   noiseVar,
   rangeMin,
-  rangeMax
+  rangeMax, missingness
 )
 
 numParticipants = 30
@@ -659,7 +672,8 @@ figure <- ggarrange(
   nrow = 2,
   font.label =list(color="black",size=10)
 )
-figure
+
+print(figure)
 
 # these settings look good just need to change the path 
 ggsave(device='pdf',dpi=600 , width = 12, height = 8, filename="figureStatsEnvLessVar2.pdf")
@@ -667,7 +681,7 @@ ggsave(device='pdf',dpi=600 , width = 12, height = 8, filename="figureStatsEnvLe
 
 # fit model ---------------------------------------------------------------
 
-# test
+
 # fitting a mixed effects model
 
 modelFitted <- lme4::lmer(y ~ time + (time | ppID), data)
