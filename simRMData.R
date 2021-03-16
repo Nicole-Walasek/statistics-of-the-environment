@@ -50,7 +50,7 @@ plotSimData <-
     dataWide <- cast(data, ID ~
                        time, value = "yNorm")
     
-    results = apply(dataWide[, -1], 1, acf, lag.max = 1, plot = FALSE)
+    results = apply(dataWide[,-1], 1, acf, lag.max = 1, plot = FALSE)
     sampleAutoCorrelations <- c()
     for (i in 1:nSample) {
       sampleAutoCorrelations[i] <- results[i][[1]]$acf[2]
@@ -295,7 +295,7 @@ simData <-
           # x refers to the change point in units of time
           # y refers to the mean slope change
           # z refers to the variance around the mean slope change
-          currRow <- loopDF[currRowIDX,]
+          currRow <- loopDF[currRowIDX, ]
           
           # TODO consider adding per participant variance in the change point
           # woud be easiest to accomplish with another loop through the entire dataframe
@@ -313,7 +313,7 @@ simData <-
           # x refers to the change point in units of time
           # y refers to the mean slope change
           # z refers to the variance around the mean slope change
-          currRow <- loopDF[currRowIDX,]
+          currRow <- loopDF[currRowIDX, ]
           
           # TODO consider adding per participant variance in the change point
           # woud be easiest to accomplish with another loop through the entire dataframe
@@ -340,7 +340,7 @@ simData <-
                                                 c("ID"))
       particpantSlopesAcrossTimeDFLongSorted <-
         particpantSlopesAcrossTimeDFLong[order(particpantSlopesAcrossTimeDFLong$ID,
-                                               particpantSlopesAcrossTimeDFLong$time),]
+                                               particpantSlopesAcrossTimeDFLong$time), ]
       
       
       particpantSlopesAcrossTime = particpantSlopesAcrossTimeDFLongSorted$value
@@ -353,7 +353,7 @@ simData <-
     
     if (is.function(ppVar)) {
       x <- 0:nObs
-      x <- x+0.1
+      x <- x + 0.1
       
       if (min(ppVar(x)) < 0) {
         noiseFunctionIB <- ppVar(x) + (abs(min(ppVar(x))) + 0.1)
@@ -361,7 +361,8 @@ simData <-
           (noiseFunctionIB) / abs(sum(noiseFunctionIB)) * (noiseVar * max(x))
         
       } else {
-        noiseFunction <- ((ppVar(x)) / abs(sum(ppVar(x)))) * (noiseVar * max(x))
+        noiseFunction <-
+          ((ppVar(x)) / abs(sum(ppVar(x)))) * (noiseVar * max(x))
         
       }
       plot(noiseFunction)
@@ -483,7 +484,7 @@ missingness = 'None'
 
 
 varFun <- function(x) {
-  (x**2)
+  (x ** 2)
 }
 
 list[data, populationChangePoints] <- simData(
@@ -544,7 +545,7 @@ rangeMin = 1
 rangeMax = 10
 
 missingness = 'None'
-
+varFun = 'None'
 
 
 ## @ Ethan: new parameters that create less variance:
@@ -598,7 +599,8 @@ list[data, populationChangePoints] <- simData(
   noiseVar,
   rangeMin,
   rangeMax,
-  missingness
+  missingness,
+  varFun
 )
 
 numParticipants = 30
@@ -625,7 +627,8 @@ list[data, populationChangePoints] <- simData(
   noiseVar,
   rangeMin,
   rangeMax,
-  missingness
+  missingness,
+  varFun
 )
 
 numParticipants = 30
@@ -652,7 +655,8 @@ list[data, populationChangePoints] <- simData(
   noiseVar,
   rangeMin,
   rangeMax,
-  missingness
+  missingness,
+  varFun
 )
 
 numParticipants = 30
@@ -679,7 +683,8 @@ list[data, populationChangePoints] <- simData(
   noiseVar,
   rangeMin,
   rangeMax,
-  missingness
+  missingness,
+  varFun
 )
 
 numParticipants = 30
@@ -706,7 +711,8 @@ list[data, populationChangePoints] <- simData(
   noiseVar,
   rangeMin,
   rangeMax,
-  missingness
+  missingness,
+  varFun
 )
 
 numParticipants = 30
@@ -733,7 +739,8 @@ list[data, populationChangePoints] <- simData(
   noiseVar,
   rangeMin,
   rangeMax,
-  missingness
+  missingness,
+  varFun
 )
 
 numParticipants = 30
