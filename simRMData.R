@@ -24,7 +24,16 @@ pacman::p_load(
 
 # set working directory
 
-wdPath = file.path("C:", "Users", "nicwa", "Dropbox", "PhD", "Publications", "statistics of the environment", "statistics_of_the_environment_code")
+wdPath = file.path(
+  "C:",
+  "Users",
+  "nicwa",
+  "Dropbox",
+  "PhD",
+  "Publications",
+  "statistics of the environment",
+  "statistics_of_the_environment_code"
+)
 setwd(wdPath)
 
 
@@ -41,7 +50,7 @@ plotSimData <-
     dataWide <- cast(data, ID ~
                        time, value = "yNorm")
     
-    results = apply(dataWide[,-1], 1, acf, lag.max = 1, plot = FALSE)
+    results = apply(dataWide[, -1], 1, acf, lag.max = 1, plot = FALSE)
     sampleAutoCorrelations <- c()
     for (i in 1:nSample) {
       sampleAutoCorrelations[i] <- results[i][[1]]$acf[2]
@@ -172,6 +181,7 @@ plotSimData <-
   }
 
 
+
 simData <-
   function(nSample,
            popInt,
@@ -184,7 +194,9 @@ simData <-
            slopeChangeVar,
            noiseVar,
            rangeMin,
-           rangeMax, missingness) {
+           rangeMax,
+           missingness,
+           ppVar) {
     ### parameters
     
     # nSample: desired sample size
@@ -192,7 +204,8 @@ simData <-
     # popSlope: population slope
     # sigmaModel: is the variance-covaraince matrix
     # nObs: number of observations/repeated measures
-    # changePoints: number of change points in the population trend; can also be use specified individual changePoints       or 'None' if the user does not want any
+    # changePoints: number of change points in the population trend; can also be use specified individual changePoints
+    # or 'None' if the user does not want any
     
     # slopeChangeMean: mean value of the slope changing at each change point
     # slopeChangeVar: variance around the mean slope change
@@ -228,7 +241,7 @@ simData <-
         # if this is true we know that the user only specified the number of change points
         # we sample the use specified number of change points
         
-        populationChangePoints = sort(sample(2:nObs-1, changePoints))
+        populationChangePoints = sort(sample(2:nObs - 1, changePoints))
         
         
       } else {
@@ -282,7 +295,7 @@ simData <-
           # x refers to the change point in units of time
           # y refers to the mean slope change
           # z refers to the variance around the mean slope change
-          currRow <- loopDF[currRowIDX, ]
+          currRow <- loopDF[currRowIDX,]
           
           # TODO consider adding per participant variance in the change point
           # woud be easiest to accomplish with another loop through the entire dataframe
@@ -300,15 +313,16 @@ simData <-
           # x refers to the change point in units of time
           # y refers to the mean slope change
           # z refers to the variance around the mean slope change
-          currRow <- loopDF[currRowIDX, ]
+          currRow <- loopDF[currRowIDX,]
           
           # TODO consider adding per participant variance in the change point
           # woud be easiest to accomplish with another loop through the entire dataframe
           
           for (ppIDX in (1:nSample)) {
             currCol <-  abs(round(rnorm(1, currRow$x, changePointsVar)))
-            if (currCol >= nObs+2){ 
-              currCol <- nObs+1}
+            if (currCol >= nObs + 2) {
+              currCol <- nObs + 1
+            }
             particpantSlopesAcrossTimeDFWide[particpantSlopesAcrossTimeDFWide$ID == ppIDX, (currCol + 1):(nObs + 2)] <-
               particpantSlopesAcrossTimeDFWide[particpantSlopesAcrossTimeDFWide$ID == ppIDX, (currCol + 1):(nObs + 2)] +
               rnorm(1, mean = currRow$y, sd = currRow$z)
@@ -326,18 +340,66 @@ simData <-
                                                 c("ID"))
       particpantSlopesAcrossTimeDFLongSorted <-
         particpantSlopesAcrossTimeDFLong[order(particpantSlopesAcrossTimeDFLong$ID,
-                                               particpantSlopesAcrossTimeDFLong$time), ]
+                                               particpantSlopesAcrossTimeDFLong$time),]
       
       
       particpantSlopesAcrossTime = particpantSlopesAcrossTimeDFLongSorted$value
       
     }
     
+    
+    # you can manipulate the variance within participants here
+    
+    
+    if (is.function(ppVar)) {
+      x <- 0:nObs
+      x <- x+0.1
+      
+      if (min(ppVar(x)) < 0) {
+        noiseFunctionIB <- ppVar(x) + (abs(min(ppVar(x))) + 0.1)
+        noiseFunction <-
+          (noiseFunctionIB) / abs(sum(noiseFunctionIB)) * (noiseVar * max(x))
+        
+      } else {
+        noiseFunction <- ((ppVar(x)) / abs(sum(ppVar(x)))) * (noiseVar * max(x))
+        
+      }
+      plot(noiseFunction)
+      
+      RE.var = rep(noiseFunction, times = nSample)
+      
+    } else if (ppVar == 'increasing') {
+      # implement an increasing patterns such that the mean corresponds to
+      # noiseVar
+      
+      x <- 0:nObs
+      noiseIncreasing <- x + 0.1
+      noiseIncreasing <-
+        ((noiseIncreasing) / abs(sum(noiseIncreasing))) * (noiseVar * max(x))
+      RE.var = rep(noiseIncreasing, times = nSample)
+      
+    } else if (ppVar == 'decreasing') {
+      x <- 0:nObs
+      noiseDecreasing <- sort(x + 0.1, decreasing = T)
+      noiseDecreasing <-
+        ((noiseDecreasing) / abs(sum(noiseDecreasing))) * (noiseVar * max(x))
+      RE.var = rep(noiseDecreasing, times = nSample)
+      
+    } else  {
+      # assume that the user put in None, so variance is the same across time
+      RE.var = rep(noiseVar, each = (nObs + 1) * nSample)
+      
+      
+      
+    }
+    
+    
     data = data.frame(
       ID   = rep(1:nSample,   each = (nObs + 1)),
       time = rep(0:nObs,   times = nSample),
       RE.i = rep(RE[, 1], each = (nObs + 1)),
       RE.s = particpantSlopesAcrossTime,
+      RE.var = RE.var ,
       y    = NA
     )
     
@@ -351,22 +413,24 @@ simData <-
     # y = with(data, (0 + RE.i) + (0 + RE.s + rnorm(n=nSample*nObs, mean=0, sd=0.2))*time)
     
     
+    
+    
     y = with(data,
              (0 + RE.i) + (0 + RE.s) * time + rnorm(
                n = nSample * (nObs + 1),
                mean = 0,
-               sd = noiseVar
+               sd = RE.var
                
              ))
-    
     
     
     # do you want to add missing data at random?
     
     if (missingness != 'None') {
-      
-      m  = rbinom(n=sample*nObs, size=1, prob=missingness)
-      y[m==1] = NA
+      m  = rbinom(n = sample * nObs,
+                  size = 1,
+                  prob = missingness)
+      y[m == 1] = NA
       
       
     }
@@ -398,7 +462,7 @@ nSample = 100 # number of subjects
 
 # between participant variances in intercept and slope, and covariance between the two
 SigmaModel = rbind(c(1, 0.2),
-                   c(0.2, 0.1))
+                   c(0.2, 0.05))
 
 popInt = 2
 popSlope = 1.5
@@ -410,12 +474,17 @@ changePointsVar = 1
 slopeChangeMean = c(-0.2, 0.2)
 slopeChangeVar = 0.1
 
-noiseVar = 0.5
+noiseVar = 1
 
 rangeMin = 1
 rangeMax = 10
 
 missingness = 'None'
+
+
+varFun <- function(x) {
+  (x**2)
+}
 
 list[data, populationChangePoints] <- simData(
   nSample,
@@ -429,9 +498,10 @@ list[data, populationChangePoints] <- simData(
   slopeChangeVar,
   noiseVar,
   rangeMin,
-  rangeMax, missingness
+  rangeMax,
+  missingness,
+  varFun
 )
-
 
 head(data, 50)
 
@@ -445,7 +515,14 @@ p <- plotSimData(data, numParticipants, populationChangePoints)
 
 print(p)
 
-
+# these settings look good just need to change the path
+ggsave(
+  device = 'pdf',
+  dpi = 600 ,
+  width = 12,
+  height = 8,
+  filename = "figureStatsEnvChangesInVarianceIncreasing.pdf"
+)
 
 # make a panel plot for different parameter combinations ------------------
 
@@ -475,10 +552,10 @@ missingness = 'None'
 
 nSample = 100 # number of subjects
 
-# between participant variances in intercept and slope, 
+# between participant variances in intercept and slope,
 # and covariance between the two
 
-# ((varIntercept, covar), 
+# ((varIntercept, covar),
 # (coVar,varSlope))
 SigmaModel = rbind(c(5, 0.2),
                    c(0.2, 0.05))
@@ -489,7 +566,7 @@ nObs   = 20 # number of repeated measures
 
 changePoints = 2 # should be 'None if there is None'
 changePointsVar = 1
-slopeChangeMean = c(-0.05,0.05)
+slopeChangeMean = c(-0.05, 0.05)
 slopeChangeVar = 0.05
 
 
@@ -520,7 +597,8 @@ list[data, populationChangePoints] <- simData(
   slopeChangeVar,
   noiseVar,
   rangeMin,
-  rangeMax, missingness
+  rangeMax,
+  missingness
 )
 
 numParticipants = 30
@@ -546,7 +624,8 @@ list[data, populationChangePoints] <- simData(
   slopeChangeVar,
   noiseVar,
   rangeMin,
-  rangeMax, missingness
+  rangeMax,
+  missingness
 )
 
 numParticipants = 30
@@ -572,7 +651,8 @@ list[data, populationChangePoints] <- simData(
   slopeChangeVar,
   noiseVar,
   rangeMin,
-  rangeMax, missingness
+  rangeMax,
+  missingness
 )
 
 numParticipants = 30
@@ -598,7 +678,8 @@ list[data, populationChangePoints] <- simData(
   slopeChangeVar,
   noiseVar,
   rangeMin,
-  rangeMax, missingness
+  rangeMax,
+  missingness
 )
 
 numParticipants = 30
@@ -624,7 +705,8 @@ list[data, populationChangePoints] <- simData(
   slopeChangeVar,
   noiseVar,
   rangeMin,
-  rangeMax, missingness
+  rangeMax,
+  missingness
 )
 
 numParticipants = 30
@@ -650,7 +732,8 @@ list[data, populationChangePoints] <- simData(
   slopeChangeVar,
   noiseVar,
   rangeMin,
-  rangeMax, missingness
+  rangeMax,
+  missingness
 )
 
 numParticipants = 30
@@ -670,13 +753,19 @@ figure <- ggarrange(
   labels = c("LI", "LD", "LN", "HI", "HD", "HN"),
   ncol = 3,
   nrow = 2,
-  font.label =list(color="black",size=10)
+  font.label = list(color = "black", size = 10)
 )
 
 print(figure)
 
-# these settings look good just need to change the path 
-ggsave(device='pdf',dpi=600 , width = 12, height = 8, filename="figureStatsEnvLessVar2.pdf")
+# these settings look good just need to change the path
+ggsave(
+  device = 'pdf',
+  dpi = 600 ,
+  width = 12,
+  height = 8,
+  filename = "figureStatsEnvLessVar2.pdf"
+)
 
 
 # fit model ---------------------------------------------------------------
