@@ -22,19 +22,7 @@ pacman::p_load(
   ggpubr
 )
 
-# set working directory
 
-wdPath = file.path(
-  "C:",
-  "Users",
-  "nicwa",
-  "Dropbox",
-  "PhD",
-  "Publications",
-  "statistics of the environment",
-  "statistics_of_the_environment_code"
-)
-setwd(wdPath)
 
 
 options(digits = 5)
@@ -44,7 +32,8 @@ options(digits = 5)
 plotSimData <-
   function(data,
            numParticipants,
-           populationChangePoints) {
+           populationChangePoints,
+           populationPPVarChangePoints) {
     # compute the sample autocorrelation and its standard deviation
     
     dataWide <- cast(data, ID ~
@@ -66,7 +55,7 @@ plotSimData <-
     
     firstPart <-
       ggplot(dataNew, aes(x = time, y = yNorm, group = ppID)) + geom_line(colour = 'steelblue3',
-                                                                          size = 0.6,
+                                                                          size = 0.4,
                                                                           alpha = 0.2) +
       theme(legend.position = "none") + theme_bw() + theme(
         plot.title = element_text(face = "bold", size = 8) ,
@@ -132,33 +121,56 @@ plotSimData <-
       breaks = round(seq(1, max(data$yNorm), by = 1), 1)
     )
     
+    ## marke change points in per participant variance
     
-    
-    # + annotate(
-    #                                        'text',
-    #                                        x = 10,
-    #                                        y = 9,
-    #                                        size = 4.5,
-    #                                        color = 'black'
-    #                                      )
-    #
-    
-    # check whether there were change points
-    
+    if (!is.character(populationPPVarChangePoints)) {
+      yMin = c()
+      yMax = c()
+      
+      for (idx in 1:length(populationPPVarChangePoints)) {
+        currMean = (mean(data$yNorm[data$time == populationPPVarChangePoints[idx]]))
+        currSD = (sd(data$yNorm[data$time == populationPPVarChangePoints[idx]]))
+        
+        
+        yMin[idx] <- currMean + currSD + 0.5
+        yMax[idx] <- currMean - currSD - 0.5
+      }
+      
+      for (idx in 1:length(populationPPVarChangePoints)) {
+        currPoint <- populationPPVarChangePoints[idx]
+        finalPlotLabeled <-
+          finalPlotLabeled + geom_segment(
+            x = currPoint,
+            y = yMin[idx],
+            xend = currPoint,
+            yend = yMax[idx],
+            alpha = 0.2,
+            linetype = 'longdash',
+            color = 'darkred',
+            size = 0.8
+          )
+        
+      }
+      
+    }
     
     
     if (!is.character(populationChangePoints)) {
       yMin = c()
       yMax = c()
+      
+      
       for (idx in 1:length(populationChangePoints)) {
-        yMin[idx] <-
-          min(dataNew$yNorm[dataNew$time == populationChangePoints[idx]])
-        yMax[idx] <-
-          max(dataNew$yNorm[dataNew$time == populationChangePoints[idx]])
+        currMean = (mean(data$yNorm[data$time == populationChangePoints[idx]]))
+        currSD = (sd(data$yNorm[data$time == populationChangePoints[idx]]))
+        
+        
+        yMin[idx] <- currMean + currSD + 0.15
+        yMax[idx] <- currMean - currSD - 0.15
       }
       
       
-      #marks <- data.frame(x = rep(populationChangePoints, each = 2), y = rep(c(2,8), times = length(populationChangePoints)))
+      
       for (idx in 1:length(populationChangePoints)) {
         currPoint <- populationChangePoints[idx]
         finalPlotLabeled <-
@@ -168,12 +180,17 @@ plotSimData <-
             xend = currPoint,
             yend = yMax[idx],
             alpha = 0.2,
-            linetype = 'longdash'
+            linetype = 'longdash',
+            color = 'seagreen',
+            size = 0.8
           )
         
       }
       
     }
+    
+    
+
     
     return(finalPlotLabeled)
     
@@ -196,7 +213,8 @@ simData <-
            rangeMin,
            rangeMax,
            missingness,
-           ppVar) {
+           ppVar,
+           ppVarChangePoints) {
     ### parameters
     
     # nSample: desired sample size
@@ -237,11 +255,12 @@ simData <-
       
       # we have to deal with changepoints
       
-      if (length(changePoints) == 1) {
+      if (length(changePoints) == 1 & is.integer(changePoints)) {
+        #TODO fix this; because use cannot specify a single change point at the moment
         # if this is true we know that the user only specified the number of change points
         # we sample the use specified number of change points
         
-        populationChangePoints = sort(sample(2:nObs - 1, changePoints))
+        populationChangePoints = sort(sample(2:(nObs - 1), changePoints))
         
         
       } else {
@@ -350,7 +369,7 @@ simData <-
     
     # you can manipulate the variance within participants here
     
-    
+    populationPPVarChangePoints = "None"
     if (is.function(ppVar)) {
       x <- 0:nObs
       x <- x + 0.1
@@ -369,30 +388,66 @@ simData <-
       
       RE.var = rep(noiseFunction, times = nSample)
       
-    } else if (ppVar == 'increasing') {
-      # implement an increasing patterns such that the mean corresponds to
-      # noiseVar
+    } else if (is.character(ppVar))  {
+      if (ppVar == 'increasing') {
+        # implement an increasing patterns such that the mean corresponds to
+        # noiseVar
+        
+        x <- 0:nObs
+        noiseIncreasing <- x + 0.1
+        noiseIncreasing <-
+          ((noiseIncreasing) / abs(sum(noiseIncreasing))) * (noiseVar * max(x))
+        RE.var = rep(noiseIncreasing, times = nSample)
+        
+      } else if (ppVar == 'decreasing') {
+        x <- 0:nObs
+        noiseDecreasing <- sort(x + 0.1, decreasing = T)
+        noiseDecreasing <-
+          ((noiseDecreasing) / abs(sum(noiseDecreasing))) * (noiseVar * max(x))
+        RE.var = rep(noiseDecreasing, times = nSample)
+        
+      }else{
+        # assume that the user put in None, so variance is the same across time
+        RE.var = rep(noiseVar, each = (nObs + 1) * nSample)
+        
+      }
       
-      x <- 0:nObs
-      noiseIncreasing <- x + 0.1
-      noiseIncreasing <-
-        ((noiseIncreasing) / abs(sum(noiseIncreasing))) * (noiseVar * max(x))
-      RE.var = rep(noiseIncreasing, times = nSample)
+    } else if (is.numeric(ppVar)) {
+      # change points in varaince
+      if (length(ppVarChangePoints) == 1 &
+          is.integer(ppVarChangePoints)) {
+        populationPPVarChangePoints = sort(sample(2:(nObs - 1), ppVarChangePoints))
+        ppVarArray = rep(ppVar, each = length(populationPPVarChangePoints))
+        
+        
+      } else {
+        populationPPVarChangePoints = ppVarChangePoints
+        
+        if (length(ppVar) < length(populationPPVarChangePoints)) {
+          ppVarArray = rep(mean(ppVar),
+                           each = length(populationPPVarChangePoints))
+        } else {
+          ppVarArray = ppVar
+        }
+        
+        
+        
+      }
       
-    } else if (ppVar == 'decreasing') {
-      x <- 0:nObs
-      noiseDecreasing <- sort(x + 0.1, decreasing = T)
-      noiseDecreasing <-
-        ((noiseDecreasing) / abs(sum(noiseDecreasing))) * (noiseVar * max(x))
-      RE.var = rep(noiseDecreasing, times = nSample)
+      ppVarAcrossTime <- rep(noiseVar, each = (nObs + 1))
       
-    } else  {
-      # assume that the user put in None, so variance is the same across time
-      RE.var = rep(noiseVar, each = (nObs + 1) * nSample)
+      for (idx in 1:length(populationPPVarChangePoints)) {
+        ppVarIDX = populationPPVarChangePoints[idx]
+        ppVarVal = ppVarArray[idx]
+        ppVarAcrossTime[ppVarIDX:length(ppVarAcrossTime)] <-
+          ppVarAcrossTime[ppVarIDX:length(ppVarAcrossTime)] + ppVarVal
+        
+      }
+      RE.var = rep(ppVarAcrossTime, times = nSample)
       
       
       
-    }
+    } 
     
     
     data = data.frame(
@@ -420,7 +475,7 @@ simData <-
              (0 + RE.i) + (0 + RE.s) * time + rnorm(
                n = nSample * (nObs + 1),
                mean = 0,
-               sd = RE.var
+               sd = abs(RE.var)
                
              ))
     
@@ -447,344 +502,14 @@ simData <-
     data$yNorm <- rescale(data$y, c(rangeMin, rangeMax))
     
     
-    return(list("data" = data, "populationChangePoints" = populationChangePoints))
-    
-    
+    return(
+      list(
+        "data" = data,
+        "populationChangePoints" = populationChangePoints,
+        "populationPPVarChangePoints
+" = populationPPVarChangePoints
+      )
+    )
     
     
   }
-
-
-
-# generate data -----------------------------------------------------------
-
-
-nSample = 100 # number of subjects
-
-# between participant variances in intercept and slope, and covariance between the two
-SigmaModel = rbind(c(1, 0.2),
-                   c(0.2, 0.05))
-
-popInt = 2
-popSlope = 1.5
-
-nObs   = 20 # number of repeated measures
-
-changePoints = 2 # should be 'None if there is None'
-changePointsVar = 1
-slopeChangeMean = c(-0.2, 0.2)
-slopeChangeVar = 0.1
-
-noiseVar = 1
-
-rangeMin = 1
-rangeMax = 10
-
-missingness = 'None'
-
-
-varFun <- function(x) {
-  (x ** 2)
-}
-
-list[data, populationChangePoints] <- simData(
-  nSample,
-  popInt,
-  popSlope,
-  sigmaModel,
-  nObs,
-  changePoints,
-  changePointsVar,
-  slopeChangeMean,
-  slopeChangeVar,
-  noiseVar,
-  rangeMin,
-  rangeMax,
-  missingness,
-  varFun
-)
-
-head(data, 50)
-
-print(populationChangePoints)
-
-# plot raw data and descriptives ------------------------------------------
-
-
-numParticipants = 30
-p <- plotSimData(data, numParticipants, populationChangePoints)
-
-print(p)
-
-# these settings look good just need to change the path
-ggsave(
-  device = 'pdf',
-  dpi = 600 ,
-  width = 12,
-  height = 8,
-  filename = "figureStatsEnvChangesInVarianceIncreasing.pdf"
-)
-
-# make a panel plot for different parameter combinations ------------------
-
-# syntax for figures is L or H for the autocorrelation, D(ecreasing),I(ncreasing),N(Null) for the main effect
-
-nSample = 100 # number of subjects
-SigmaModel = rbind(c(1, 0.3),
-                   c(0.3, 0.5))
-
-
-nObs   = 20 # number of repeated measures
-
-changePoints = 2 # should be 'None if there is None'
-changePointsVar = 1
-slopeChangeMean = c(-0.6, 1)
-slopeChangeVar = 0.1
-
-rangeMin = 1
-rangeMax = 10
-
-missingness = 'None'
-varFun = 'None'
-
-
-## @ Ethan: new parameters that create less variance:
-
-
-nSample = 100 # number of subjects
-
-# between participant variances in intercept and slope,
-# and covariance between the two
-
-# ((varIntercept, covar),
-# (coVar,varSlope))
-SigmaModel = rbind(c(5, 0.2),
-                   c(0.2, 0.05))
-
-
-nObs   = 20 # number of repeated measures
-
-
-changePoints = 2 # should be 'None if there is None'
-changePointsVar = 1
-slopeChangeMean = c(-0.05, 0.05)
-slopeChangeVar = 0.05
-
-
-rangeMin = 1
-rangeMax = 10
-
-
-
-
-
-
-# low autocorr, increasing trend
-
-
-popInt = 5
-popSlope = 1.5
-noiseVar = 7
-
-list[data, populationChangePoints] <- simData(
-  nSample,
-  popInt,
-  popSlope,
-  sigmaModel,
-  nObs,
-  changePoints,
-  changePointsVar,
-  slopeChangeMean,
-  slopeChangeVar,
-  noiseVar,
-  rangeMin,
-  rangeMax,
-  missingness,
-  varFun
-)
-
-numParticipants = 30
-LI <- plotSimData(data, numParticipants, populationChangePoints)
-
-
-# high autocorr, increasing trend
-
-
-popInt = 5
-popSlope = 1.5
-noiseVar = 1
-
-list[data, populationChangePoints] <- simData(
-  nSample,
-  popInt,
-  popSlope,
-  sigmaModel,
-  nObs,
-  changePoints,
-  changePointsVar,
-  slopeChangeMean,
-  slopeChangeVar,
-  noiseVar,
-  rangeMin,
-  rangeMax,
-  missingness,
-  varFun
-)
-
-numParticipants = 30
-HI <- plotSimData(data, numParticipants, populationChangePoints)
-
-
-# low autocorr, decreasing trend
-
-
-popInt = 5
-popSlope = -1.5
-noiseVar = 6
-
-list[data, populationChangePoints] <- simData(
-  nSample,
-  popInt,
-  popSlope,
-  sigmaModel,
-  nObs,
-  changePoints,
-  changePointsVar,
-  slopeChangeMean,
-  slopeChangeVar,
-  noiseVar,
-  rangeMin,
-  rangeMax,
-  missingness,
-  varFun
-)
-
-numParticipants = 30
-LD <- plotSimData(data, numParticipants, populationChangePoints)
-
-
-# high autocorr, Dncreasing trend
-
-
-popInt = 5
-popSlope = -1.5
-noiseVar = 1
-
-list[data, populationChangePoints] <- simData(
-  nSample,
-  popInt,
-  popSlope,
-  sigmaModel,
-  nObs,
-  changePoints,
-  changePointsVar,
-  slopeChangeMean,
-  slopeChangeVar,
-  noiseVar,
-  rangeMin,
-  rangeMax,
-  missingness,
-  varFun
-)
-
-numParticipants = 30
-HD <- plotSimData(data, numParticipants, populationChangePoints)
-
-
-# low autocorr, no trend
-
-
-popInt = 5
-popSlope = 0
-noiseVar = 6
-
-list[data, populationChangePoints] <- simData(
-  nSample,
-  popInt,
-  popSlope,
-  sigmaModel,
-  nObs,
-  changePoints,
-  changePointsVar,
-  slopeChangeMean,
-  slopeChangeVar,
-  noiseVar,
-  rangeMin,
-  rangeMax,
-  missingness,
-  varFun
-)
-
-numParticipants = 30
-LN <- plotSimData(data, numParticipants, populationChangePoints)
-
-
-# high autocorr, no trend
-
-
-popInt = 5
-popSlope = 0
-noiseVar = 1
-
-list[data, populationChangePoints] <- simData(
-  nSample,
-  popInt,
-  popSlope,
-  sigmaModel,
-  nObs,
-  changePoints,
-  changePointsVar,
-  slopeChangeMean,
-  slopeChangeVar,
-  noiseVar,
-  rangeMin,
-  rangeMax,
-  missingness,
-  varFun
-)
-
-numParticipants = 30
-HN <- plotSimData(data, numParticipants, populationChangePoints)
-
-
-
-
-
-figure <- ggarrange(
-  LI,
-  LD,
-  LN,
-  HI,
-  HD,
-  HN,
-  labels = c("LI", "LD", "LN", "HI", "HD", "HN"),
-  ncol = 3,
-  nrow = 2,
-  font.label = list(color = "black", size = 10)
-)
-
-print(figure)
-
-# these settings look good just need to change the path
-ggsave(
-  device = 'pdf',
-  dpi = 600 ,
-  width = 12,
-  height = 8,
-  filename = "figureStatsEnvLessVar2.pdf"
-)
-
-
-# fit model ---------------------------------------------------------------
-
-
-# fitting a mixed effects model
-
-modelFitted <- lme4::lmer(y ~ time + (time | ppID), data)
-
-# let's look at the mode results
-
-summary(modelFitted)
-sjPlot::tab_model(modelFitted)
-
-plot_model(modelFitted, type = "pred", terms = "time")
