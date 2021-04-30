@@ -31,9 +31,10 @@ options(digits = 5)
 
 plotSimData <-
   function(data,
-           numParticipants,
+           numParticipants, nSample, nObs, 
            populationChangePoints,
            populationPPVarChangePoints) {
+    
     # compute the sample autocorrelation and its standard deviation
     
     dataWide <- cast(data, ID ~
@@ -46,7 +47,6 @@ plotSimData <-
     }
     autoCorrMean <- mean(sampleAutoCorrelations)
     autoCorrSD <- sd(sampleAutoCorrelations)
-    
     
     
     dataNew <-
@@ -68,6 +68,7 @@ plotSimData <-
         legend.position = c(0.06, 0.75)
       )
     
+      
     finalPlot <-
       firstPart + stat_summary(
         data = data,
@@ -100,10 +101,10 @@ plotSimData <-
         inherit.aes = FALSE,
         alpha = 0.3
       )
-    
+
     finalPlotLabeled <- finalPlot + labs(
       x = "measurement point",
-      y = "harshness",
+      y = "morbidity-mortality",
       title = paste(
         'autocorrelation = ',
         round(autoCorrMean, 3),
@@ -255,13 +256,13 @@ simData <-
       
       # we have to deal with changepoints
       
+      #TODO does it make sense to add time dependent changes in slope here? 
+      
       if (length(changePoints) == 1 & is.integer(changePoints)) {
-        #TODO fix this; because use cannot specify a single change point at the moment
         # if this is true we know that the user only specified the number of change points
         # we sample the use specified number of change points
         
         populationChangePoints = sort(sample(2:(nObs - 1), changePoints))
-        
         
       } else {
         # the user specified the change points him/her self
@@ -417,7 +418,14 @@ simData <-
       if (length(ppVarChangePoints) == 1 &
           is.integer(ppVarChangePoints)) {
         populationPPVarChangePoints = sort(sample(2:(nObs - 1), ppVarChangePoints))
-        ppVarArray = rep(ppVar, each = length(populationPPVarChangePoints))
+        
+        
+        if (length(ppVar) == ppVarChangePoints){
+          ppVarArray = ppVar
+        } else {
+          ppVarArray = rep(ppVar, each = length(populationPPVarChangePoints))
+          
+        }
         
         
       } else {
@@ -501,6 +509,18 @@ simData <-
     
     data$yNorm <- rescale(data$y, c(rangeMin, rangeMax))
     
+    
+    
+    
+    # for vizualisation purposes
+    if(is.numeric(populationChangePoints)){
+      populationChangePoints = populationChangePoints -1 
+    }
+    
+    if (is.numeric(populationPPVarChangePoints)){
+      populationPPVarChangePoints = populationPPVarChangePoints -1
+      
+    }
     
     return(
       list(
