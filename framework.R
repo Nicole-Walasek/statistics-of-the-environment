@@ -199,13 +199,6 @@ wdPath = file.path(
 )
 setwd(wdPath)
 
-# some plotting parameters
-numParticipants <- 30 # number of participants shown in the plot
-nSample = 100 #sample size
-
-
-
-
 
 # 30 repeated measures; increasing variance; switch points in slope
 data30RM_IncreasingVar <-
@@ -264,6 +257,8 @@ head(data50RM_VarChangePoints)
 nSample = 100
 data <- data50RM_IncreasingVarExtr
 nObs <- 50
+numParticipants <- 30 # number of participants shown in the plot
+
 
 
 # plot the original data
@@ -379,8 +374,8 @@ print(p)
 # the PACF is used to determine the number of autoregressive terms to inlcude in an ARIMA model
 # in this case we would include one autoregressive term
 
-plot(acf(as.numeric(tsadj)), main = 'ACF of the seasonally adjusted time series')
-plot(pacf(as.numeric(tsadj)), main = 'PACF of the seasonally adjusted time series')
+plot(acf(as.numeric(tsadj), plot = FALSE), main = 'ACF of the seasonally adjusted time series')
+plot(pacf(as.numeric(tsadj), plot = FALSE), main = 'PACF of the seasonally adjusted time series')
 
 ### modeling the mean trend ###
 
@@ -414,8 +409,8 @@ coefTimeModelRes <- coef(timeModelRes)
 # plotting the fitted line and residuals
 
 pModel <-
-  ggplot(data = results) + geom_line(aes(x = time, y = originalData)) + geom_point(aes(x =
-                                                                                         time, y = originalData)) + geom_line(aes(x = time, y = fittedTimeModel))
+  ggplot(data = results) + geom_line(aes(x = time, y = originalData), color = "grey") + geom_point(aes(x =
+                                                                                         time, y = originalData)) + geom_line(aes(x = time, y = fittedTimeModel), color = "red")
 pModel <-
   pModel + labs(y = "morbidity-mortality", x = "week") + scale_x_continuous(breaks =
                                                                               seq(0, nObs, 5), labels = c(0:(nObs / 5)))
@@ -433,7 +428,7 @@ pModel <-
 
 
 pRes <-
-  ggplot(data = results, aes(x = time, y = residualsTimeModel)) + geom_line() + geom_point() + geom_line()
+  ggplot(data = results, aes(x = time, y = residualsTimeModel)) + geom_line(color = "grey") + geom_point() 
 pRes <-
   pRes + labs(y = "residual", x = "week") + scale_x_continuous(breaks =
                                                                  seq(0, nObs, 5), labels = c(0:(nObs / 5)))
@@ -451,7 +446,7 @@ pRes <-
 
 
 pAbsRes <-
-  ggplot(data = results) + geom_line(aes(x = time, y = absResidualsTimeModel)) + geom_point(aes(x = time, y = absResidualsTimeModel)) + geom_line(aes(x = time, y = fittedTimeModelRes))
+  ggplot(data = results) + geom_line(aes(x = time, y = absResidualsTimeModel), color = "grey") + geom_point(aes(x = time, y = absResidualsTimeModel)) + geom_line(aes(x = time, y = fittedTimeModelRes), color = "red")
 
 pAbsRes <-
   pAbsRes + labs(y = "residual", x = "week") + scale_x_continuous(breaks =
