@@ -49,19 +49,36 @@ nSample = 100 # number of subjects
 
 # between participant variances in intercept and slope, and covariance between the two
 SigmaModel = rbind(c(1, 0.2),
-                   c(0.2, 0.05))
+                   c(0.2, 0.3))
 
 popInt = 2
 popSlope = 1.5
 
-nObs   = 20 # number of repeated measures
+nObs = 50 # number of repeated measures
 
-changePoints = 10 # should be 'None if there is None'
-changePointsVar = 1
-slopeChangeMean = c(-1)
+# changepoints in the mean
+# number of change points; variance in the timing of change points;
+# mean change in slope at a change point; variance in the change of the slope
+changePoints = as.integer(3) # should be 'None if there is None'
+changePointsVar = 0
+
+slopeChangeMean = c(-0.5, 0.7, -0.1)
 slopeChangeVar = 0.1
 
-noiseVar = 1
+
+# change points in the variance
+# change in variance; number of variance change points  
+
+# ppVar can increasing, decreasing or a specified function 
+varFun <- function(x) {
+  (x ** 2)
+}
+
+ppVar = "increasing" #c(2, -2.5)#"increasing" 
+
+ppVarChangePoints = as.integer(2)
+
+noiseVar = 3 # noise around each participants mean trend
 
 rangeMin = 1
 rangeMax = 10
@@ -69,9 +86,6 @@ rangeMax = 10
 missingness = 'None'
 
 
-varFun <- function(x) {
-  (x ** 2)
-}
 
 list[data, populationChangePoints, populationPPVarChangePoints] <-
   simData(
@@ -88,11 +102,11 @@ list[data, populationChangePoints, populationPPVarChangePoints] <-
     rangeMin,
     rangeMax,
     missingness,
-    c(2, -3, 2),
-    c(5, 10, 15)
+    ppVar,
+    ppVarChangePoints
   )
 
-head(data, 50)
+head(data, 70)
 
 print(populationChangePoints)
 print(populationPPVarChangePoints)
@@ -100,9 +114,9 @@ print(populationPPVarChangePoints)
 
 
 numParticipants = 30
+
 p <-
-  plotSimData(data,
-              numParticipants,
+  plotSimData(data, numParticipants, nSample, nObs,
               populationChangePoints,
               populationPPVarChangePoints)
 
@@ -114,10 +128,40 @@ ggsave(
   dpi = 600 ,
   width = 12,
   height = 8,
-  filename = "figureStatsEnvChangePointsInVariance.pdf"
+  filename = "figureStatsEnvVarIncreasingExtremeandSlopeChangePoints_50RM.pdf"
 )
 
-# make a panel plot for different parameter combinations ------------------
+
+
+# saving the dataframe if zou like it ----------------------------------------------------
+
+write.csv(data, "figureStatsEnvVarIncreasingExtremeandSlopeChangePoints_50RM.csv", row.names=TRUE) 
+  
+# fit model ---------------------------------------------------------------
+
+
+# fitting a mixed effects model
+
+modelFitted <- lme4::lmer(y ~ time + (time | ppID), data)
+
+# let's look at the mode results
+
+summary(modelFitted)
+sjPlot::tab_model(modelFitted)
+
+plot_model(modelFitted, type = "pred", terms = "time")
+
+
+
+
+
+
+
+
+
+
+
+# PANEL PLOTS FOR DIFFERENT PARAMETER COMBINATIONS ------------------
 
 # syntax for figures is L or H for the autocorrelation, D(ecreasing),I(ncreasing),N(Null) for the main effect
 
@@ -177,8 +221,7 @@ list[data, populationChangePoints, populationPPVarChangePoints] <-
   )
 
 LI <-
-  plotSimData(data,
-              numParticipants,
+  plotSimData(data,numParticipants,nSample, nObs, 
               populationChangePoints,
               populationPPVarChangePoints)
 
@@ -213,8 +256,7 @@ list[data, populationChangePoints, populationPPVarChangePoints] <-
   )
 
 HI <-
-  plotSimData(data,
-              numParticipants,
+  plotSimData(data,numParticipants, nSample, nObs,
               populationChangePoints,
               populationPPVarChangePoints)
 
@@ -249,8 +291,7 @@ list[data, populationChangePoints, populationPPVarChangePoints] <-
   )
 
 LD <-
-  plotSimData(data,
-              numParticipants,
+  plotSimData(data,numParticipants, nSample, nObs, 
               populationChangePoints,
               populationPPVarChangePoints)
 
@@ -285,8 +326,7 @@ list[data, populationChangePoints, populationPPVarChangePoints] <-
   )
 
 HD <-
-  plotSimData(data,
-              numParticipants,
+  plotSimData(data,numParticipants,nSample, nObs, 
               populationChangePoints,
               populationPPVarChangePoints)
 
@@ -321,8 +361,7 @@ list[data, populationChangePoints, populationPPVarChangePoints] <-
   )
 
 LN <-
-  plotSimData(data,
-              numParticipants,
+  plotSimData(data,numParticipants,nSample, nObs, 
               populationChangePoints,
               populationPPVarChangePoints)
 
@@ -357,8 +396,7 @@ list[data, populationChangePoints, populationPPVarChangePoints] <-
   )
 
 HN <-
-  plotSimData(data,
-              numParticipants,
+  plotSimData(data,numParticipants,nSample, nObs, 
               populationChangePoints,
               populationPPVarChangePoints)
 
@@ -391,16 +429,4 @@ ggsave(
 )
 
 
-# fit model ---------------------------------------------------------------
 
-
-# fitting a mixed effects model
-
-modelFitted <- lme4::lmer(y ~ time + (time | ppID), data)
-
-# let's look at the mode results
-
-summary(modelFitted)
-sjPlot::tab_model(modelFitted)
-
-plot_model(modelFitted, type = "pred", terms = "time")
