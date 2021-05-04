@@ -22,10 +22,6 @@ pacman::p_load(
   ggpubr
 )
 
-# load my own R functions
-
-source('simRMData.R')
-
 # set working directory
 
 wdPath = file.path(
@@ -40,6 +36,9 @@ wdPath = file.path(
 )
 setwd(wdPath)
 
+# load my own R functions
+
+source('simRMData.R')
 
 
 # generate data -----------------------------------------------------------
@@ -74,11 +73,11 @@ varFun <- function(x) {
   (x ** 2)
 }
 
-ppVar = "increasing" #c(2, -2.5)#"increasing" 
+ppVar = c(4, -2.5) #c(2, -2.5)#"increasing" 
 
 ppVarChangePoints = as.integer(2)
 
-noiseVar = 3 # noise around each participants mean trend
+noiseVar = 1 # noise around each participants mean trend
 
 rangeMin = 1
 rangeMax = 10
@@ -128,14 +127,14 @@ ggsave(
   dpi = 600 ,
   width = 12,
   height = 8,
-  filename = "figureStatsEnvVarIncreasingExtremeandSlopeChangePoints_50RM.pdf"
+  filename = "figureStatsEnvVarChangePointsandSlopeChangePoints_50RM_Extreme.pdf"
 )
 
 
 
 # saving the dataframe if zou like it ----------------------------------------------------
 
-write.csv(data, "figureStatsEnvVarIncreasingExtremeandSlopeChangePoints_50RM.csv", row.names=TRUE) 
+write.csv(data, "simData_VarChangePointsandSlopeChangePoints_50RM_Extreme.csv", row.names=TRUE) 
   
 # fit model ---------------------------------------------------------------
 
