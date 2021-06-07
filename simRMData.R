@@ -1,19 +1,9 @@
 # load packages -----------------------------------------------------------
 
-
-if (!require("pacman"))
-  install.packages("pacman")
-
 pacman::p_load(
   ggplot2,
   ggthemes,
-  boostmtree,
-  MargCond,
-  simstudy,
-  lme4,
   MASS,
-  sjPlot,
-  effects,
   dplyr,
   reshape,
   scales,
@@ -27,7 +17,52 @@ pacman::p_load(
 
 options(digits = 5)
 # functions for plotting and simulating data --------------------------------
-
+detect_ChangePoints <- function(data) {
+  # detect slope change points
+  outcomeSlope <-
+    data.frame(sapply(split(data$RE.s, data$ppID), function(vec) {
+      return(which(abs(diff(vec)) > 0))
+    }))
+  
+  # next average across participants
+  resultSlope <- round(rowMeans(outcomeSlope))
+  
+  if (length(resultSlope) == (nrow(data[data$ppID == 1, ]) - 1)) {
+    resultSlope = 'None'
+  } else if ((is.integer(resultSlope) ||
+              is.numeric(resultSlope)) &&
+             length(resultSlope) == 0L) {
+    resultSlope = 'None'
+  }
+  
+  
+  
+  # detect variance change points
+  outcomeVar <-
+    data.frame(sapply(split(data$RE.var, data$ppID), function(vec) {
+      return(which(abs(diff(vec)) > 0))
+    }))
+  
+  # next average across participants
+  resultVar <- round(rowMeans(outcomeVar))
+  
+  
+  if (length(resultVar) == (nrow(data[data$ppID == 1, ]) - 1)) {
+    resultVar = 'None'
+  } else if ((is.integer(resultVar) ||
+              is.numeric(resultVar)) && length(resultVar) == 0L) {
+    resultVar = 'None'
+  }
+  
+  
+  return(
+    list(
+      "populationChangePoints" = resultSlope,
+      "populationPPVarChangePoints" = resultVar
+    )
+  )
+  
+}
 
 plotSimData <-
   function(data,
@@ -37,8 +72,8 @@ plotSimData <-
     
     # compute the sample autocorrelation and its standard deviation
     
-    dataWide <- cast(data, ID ~
-                       time, value = "yNorm")
+    dataWide <- cast(data, ppID ~
+                       time, value = "y")
     
     results = apply(dataWide[,-1], 1, acf, lag.max = 1, plot = FALSE)
     sampleAutoCorrelations <- c()
@@ -54,7 +89,7 @@ plotSimData <-
     
     
     firstPart <-
-      ggplot(dataNew, aes(x = time, y = yNorm, group = ppID)) + geom_line(colour = 'steelblue3',
+      ggplot(dataNew, aes(x = time, y = y, group = ppID)) + geom_line(colour = 'steelblue3',
                                                                           size = 0.4,
                                                                           alpha = 0.2) +
       theme(legend.position = "none") + theme_bw() + theme(
@@ -77,7 +112,7 @@ plotSimData <-
         size = 0.8,
         linetype = "solid",
         colour = 'darkred' ,
-        aes(x = time, y = yNorm),
+        aes(x = time, y = y),
         inherit.aes = FALSE
       ) +
       stat_summary(
@@ -88,7 +123,7 @@ plotSimData <-
         fun.max = function(x)
           mean(x) + sd(x),
         geom = "ribbon",
-        aes(x = time, y = yNorm),
+        aes(x = time, y = y),
         alpha = 0.3,
         fill = "grey70",
         colour = NA,
@@ -97,7 +132,7 @@ plotSimData <-
         data = data,
         fun.data = mean_se,
         geom = "ribbon",
-        aes(x = time, y = yNorm),
+        aes(x = time, y = y),
         inherit.aes = FALSE,
         alpha = 0.3
       )
@@ -118,8 +153,8 @@ plotSimData <-
       breaks = round(seq(0, nObs, by = 1), 1)
     ) + scale_y_continuous(
       expand = c(0, 0),
-      limits = c(1, max(data$yNorm)),
-      breaks = round(seq(1, max(data$yNorm), by = 1), 1)
+      limits = c(1, max(data$y)),
+      breaks = round(seq(1, max(data$y), by = 1), 1)
     )
     
     ## marke change points in per participant variance
@@ -129,8 +164,8 @@ plotSimData <-
       yMax = c()
       
       for (idx in 1:length(populationPPVarChangePoints)) {
-        currMean = (mean(data$yNorm[data$time == populationPPVarChangePoints[idx]]))
-        currSD = (sd(data$yNorm[data$time == populationPPVarChangePoints[idx]]))
+        currMean = (mean(data$y[data$time == populationPPVarChangePoints[idx]]))
+        currSD = (sd(data$y[data$time == populationPPVarChangePoints[idx]]))
         
         
         yMin[idx] <- currMean + currSD + 0.5
@@ -162,8 +197,8 @@ plotSimData <-
       
       
       for (idx in 1:length(populationChangePoints)) {
-        currMean = (mean(data$yNorm[data$time == populationChangePoints[idx]]))
-        currSD = (sd(data$yNorm[data$time == populationChangePoints[idx]]))
+        currMean = (mean(data$y[data$time == populationChangePoints[idx]]))
+        currSD = (sd(data$y[data$time == populationChangePoints[idx]]))
         
         
         yMin[idx] <- currMean + currSD + 0.15
